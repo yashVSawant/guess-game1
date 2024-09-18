@@ -14,7 +14,7 @@ const gameRoute = require('./routes/game');
 
 const app = express();
 
-app.use(cors({origin:'http://localhost:3001'}))
+app.use(cors({origin:'https://guess-game-theta.vercel.app/'}))
 app.use(bodyParser.json());
 app.use(helmet())
 
