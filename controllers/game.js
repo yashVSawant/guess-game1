@@ -1,3 +1,4 @@
+const mongoose = require('mongoose')
 const Game = require('../models/game');
 const UserData = require('../models/userData');
 
@@ -11,16 +12,19 @@ exports.startGame = asyncErrorHandler(async(req,res)=>{
         userId:_id , latestTarget:randomNumber
     })
     const hint = randomNumber%10;
-    await UserData.findOneAndUpdate({userId:_id},{ $inc: { matches: 1 }});
-    await game.save();
-    res.status(200).json({success:true ,game:game ,hint:hint})
+    await Promise.all([
+        UserData.findOneAndUpdate({userId:_id},{ $inc: { matches: 1 }}),
+        game.save()
+    ])
+    res.status(201).json({success:true ,game:game ,hint:hint})
 })
 
 exports.addScore = asyncErrorHandler(async(req,res)=>{
     const {id} = req.params;
     const {guess} = req.body;
     const game = await Game.findOne({_id:id});
-    if(game.isGameOver)throw new ApiError('400' , 'match is already ended!');
+    if(!game)throw new ApiError('game not found!',404);
+    if(game.isGameOver)throw new ApiError('match is already ended!' , 400);
     const userData = await UserData.findOne({userId:req.user._id});
     let guessValue ;
     if(+guess === game.latestTarget)guessValue = "match";
@@ -38,8 +42,6 @@ exports.addScore = asyncErrorHandler(async(req,res)=>{
     }
     if(game.attemptsMade === game.maxAttempts){
         game.isGameOver = true;
-        userData.totalScore += game.score;
-        await userData.save()
     }
 
     if(userData.highestScore < game.score){
@@ -48,16 +50,34 @@ exports.addScore = asyncErrorHandler(async(req,res)=>{
     }
     const hint = game.latestTarget % 10;
     await game.save();
-    res.status(200).json({success:true ,game:game ,guess:guessValue ,hint:hint})
+    const gameClone = { ...game._doc };
+    delete gameClone.latestTarget; 
+    res.status(200).json({success:true ,game:gameClone ,guess:guessValue ,hint:hint})
 })
 
 
 exports.endGame = asyncErrorHandler(async(req,res)=>{
-    const {id} = req.params;
-    const game = await Game.findOne({_id:id});
-    if(game.isGameOver)throw new ApiError('400' , 'match is already ended!');
-    game.isGameOver = true;
-    await game.save();
-    res.status(200).json({success:true , game:game})
+    const session = await mongoose.startSession()
+    try {
+        session.startTransaction();
+        const {id} = req.params;
+        const {_id} = req.user;
+        const game = await Game.findOne({_id:id});
+        const userData = await UserData.findOne({userId:_id})
+        if(!game)throw new ApiError('game not found!',404);
+        game.isGameOver = true;
+        userData.totalScore += game.score;
+        await Promise.all([
+            userData.save({session}),
+            game.save({session})
+        ]);
+        await session.commitTransaction();
+        await session.endSession();
+        res.status(200).json({success:true , game:game})
+    } catch (err) {
+        await session.abortTransaction();
+        await session.endSession();
+        throw new ApiError(err.message ,err.statusCode)
+    }
 })
 
