@@ -12,9 +12,9 @@ const authRoute = require('./routes/auth');
 const userRoute = require('./routes/user');
 const gameRoute = require('./routes/game');
 
-const app = express();//https://guess-game-ecru.vercel.app
+const app = express();
 
-app.use(cors({origin:'http://localhost:3001'}))
+app.use(cors({origin:'https://guess-game-ecru.vercel.app'}))
 app.use(bodyParser.json());
 app.use(helmet());
 
