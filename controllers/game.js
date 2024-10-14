@@ -58,12 +58,12 @@ exports.addScore = asyncErrorHandler(async(req,res)=>{
 
 exports.endGame = asyncErrorHandler(async(req,res)=>{
     const session = await mongoose.startSession()
+    session.startTransaction();
     try {
-        session.startTransaction();
         const {id} = req.params;
         const {_id} = req.user;
         const game = await Game.findOne({_id:id});
-        const userData = await UserData.findOne({userId:_id})
+        const userData = await UserData.findOne({userId:_id});
         if(!game)throw new ApiError('game not found!',404);
         game.isGameOver = true;
         userData.totalScore += game.score;

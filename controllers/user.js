@@ -5,7 +5,7 @@ const {asyncErrorHandler} = require('../utils/asyncErrorHandler');
 exports.info = asyncErrorHandler(async(req,res)=>{
     const {_id , name} = req.user;
     const userData = await UserData.findOne({userId:_id});
-    res.status(200).json({success:true ,name:name ,data:userData})
+    res.status(200).json({success:true ,name:name ,data:userData});
 })
 
 exports.topTenHighestScore = asyncErrorHandler(async(req,res)=>{
